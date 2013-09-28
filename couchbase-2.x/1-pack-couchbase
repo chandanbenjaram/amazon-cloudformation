@@ -32,7 +32,7 @@
     "RAMForDefaultBucket" : {
       "Description" : "RAM quota in MB for each node for the default bucket. Should be <= RAMPerServer. Set to 0 for no default bucket.",
       "Type" : "Number",
-      "Default" : "1024",
+      "Default" : "2048",
       "MinValue" : "0"
     },
     "ExistingClusterHostPort" : {
@@ -65,10 +65,10 @@
         "Type" : "String",
         "Default" : "cb_placement_group"
       },
-      "VolumeType" : {
-        "Description" : "Volume Type (standard, io1)",
+      "Bucket" : {
+        "Description" : "A couchbase bucket to create",
         "Type" : "String",
-        "Default" : "standard"
+        "Default" : "default"
       }
   },
 
@@ -132,62 +132,58 @@
 			"echo '/dev/sdh /opt/couchbase/ ext4 defaults,auto,noatime,noexec 0 0' | tee -a /etc/fstab","\n",
 			"mount /dev/sdh /opt/couchbase","\n",
 			
-			"chmod -R 777 /opt/couchbase/ >> /tmp/status.log 2>&1\n",
-			
 			"## increase limits","\n",
 			"ulimit -n 100000","\n",
-            "echo 'step 0' > /tmp/status.log","\n",			
+            "echo `uname -n` > /tmp/status.log","\n",			
+
             "yum -y install openssl098e","\n",
             "wget ", { "Ref" : "PackageURL" },"\n",
             "rpm -i couchbase-server-community*.rpm","\n",
-
             "/bin/sh -c \"", { "Ref" : "AfterInstall" }, "\"\n",
-            "sleep 5","\n",
-
+            "sleep 25","\n",
               "if [ \"default\" != \"", { "Ref" : "NumVBuckets" }, "\" ]; then","\n",
               "  wget https://raw.github.com/couchbaselabs/rampup/master/after-install","\n",
               "  chmod a+x after-install","\n",
               "  ./after-install ", { "Ref" : "NumVBuckets" },"\n",
               "fi","\n",
-            "echo 'step after-install successful' >> /tmp/status.log","\n",			
 
-            "echo 'trying chmod...' >> /tmp/status.log","\n",			
-			"chmod -R 777 /opt/couchbase >> /tmp/status.log 2>&1\n",
-			
-            "echo 'moving on...2' >> /tmp/status.log","\n",			
-			
+            "echo 'Node CB provisioning start....' >> /tmp/status.log","\n",			
+
             "if [ \"host:port\" != \"", { "Ref" : "ExistingClusterHostPort" }, "\" ]; then","\n",
-	            "echo 'Existing couchbase cluster...' >> /tmp/status.log","\n",			
-	            " sudo /opt/couchbase/bin/couchbase-cli server-add",
+	            "echo 'Existing cluster.' >> /tmp/status.log","\n",			
+				"echo 'server-add start...' >> /tmp/status.log","\n",
+	            " /opt/couchbase/bin/couchbase-cli server-add",
 	            "    -u Administrator -p ", { "Ref" : "RESTPassword" },
 	            "    -c ", { "Ref" : "ExistingClusterHostPort" },
-	            "    --server-add=`hostname -i`:8091","\n",
-	            "echo 'Existing couchbase cluster complete.' >> /tmp/status.log","\n",			
-            "else","\n",
-	            "echo 'New couchbase cluster...' >> /tmp/status.log","\n",			
+	            "    --server-add=`hostname -i`:8091",
+	            "    >> /tmp/status.log","\n",
+	            "echo '...server-add complete' >> /tmp/status.log","\n",			
 	
-		            "ls -al /opt/ >> /tmp/status.log","\n",			
-			            "echo '...............NEXT NEXT NEXT NEXT...' >> /tmp/status.log","\n",			
-		            "ls -al /opt/couchbase >> /tmp/status.log","\n",			
-		            "echo '...............NEXT NEXT NEXT NEXT 1...' >> /tmp/status.log","\n",			
-		
-					"sudo chmod -R 777 /opt/couchbase/ >> /tmp/status.log 2>&1\n",
-
-
-	            " /opt/couchbase/bin/couchbase-cli cluster-init -c 127.0.0.1 --cluster-init-username=Administrator --cluster-init-password=123456 --cluster-init-ramsize=2048 >> /tmp/status.log","\n",			
-		        "echo 'New couchbase cluster...step 1' >> /tmp/status.log","\n",			
-	            "  if [ \"0\" != \"", { "Ref" : "RAMForDefaultBucket" }, "\" ]; then","\n",
-	            "    /opt/couchbase/bin/couchbase-cli bucket-create -c 127.0.0.1",
-	            "      -u Administrator -p ", { "Ref" : "RESTPassword" },
-	            "      --bucket=default",
-	            "      --bucket-type=couchbase",
-	            "      --bucket-password=",
-	            "      --bucket-ramsize=", { "Ref" : "RAMForDefaultBucket" },
-	            "      --bucket-replica=1","\n",
-	            "  fi","\n",
-
-            "  fi","\n",
-            "echo 'last step...' >> /tmp/status.log","\n",			
+            "else","\n",
+				"echo 'Setting up NEW cluster...' >> /tmp/status.log","\n",	
+				"echo 'cluster-init start...' >> /tmp/status.log","\n",
+				"  /opt/couchbase/bin/couchbase-cli cluster-init -c 127.0.0.1",
+	              "    --cluster-init-username=Administrator",
+	              "    --cluster-init-password=", { "Ref" : "RESTPassword" },
+	              "    --cluster-init-ramsize=", { "Ref" : "RAMPerServer" },
+	              "    >> /tmp/status.log","\n",
+				"echo '...cluster-init complete' >> /tmp/status.log","\n",
+				
+				"echo 'bucket-create start...' >> /tmp/status.log","\n",
+				  "  if [ \"0\" != \"", { "Ref" : "RAMForDefaultBucket" }, "\" ]; then","\n",
+	              "    /opt/couchbase/bin/couchbase-cli bucket-create -c 127.0.0.1",
+	              "      -u Administrator -p ", { "Ref" : "RESTPassword" },
+	              "      --bucket=",{ "Ref" : "Bucket" },
+	              "      --bucket-type=couchbase",
+	              "      --bucket-password=",
+	              "      --bucket-ramsize=", { "Ref" : "RAMForDefaultBucket" },
+				  "      --enable-flush=1",
+	              "      --bucket-replica=1",
+	              "    >> /tmp/status.log","\n",
+	              "  fi","\n",
+				"echo '...bucket-create complete' >> /tmp/status.log","\n",
+				
+	        "  fi","\n",
 
             "/bin/sh -c \"", { "Ref" : "AfterConfigure" }, "\"\n",
               "curl -X PUT -H 'Content-Type:' --data-binary '{\"Status\" : \"SUCCESS\",",
@@ -195,13 +191,14 @@
                                                              "\"UniqueId\" : \"couchbase\",",
                                                              "\"Data\" : \"Done\"}' ",
                     "\"", {"Ref" : "WaitForServerNode0WaitHandle"}, "\"\n",
-            "echo 'finished last step...' >> /tmp/status.log","\n"
+            "echo '......done' >> /tmp/status.log","\n"
 
         ]]}}
       }
 
     },
    
+
 
     "InstanceSecurityGroup" : {
       "Type" : "AWS::EC2::SecurityGroup",
@@ -261,21 +258,28 @@
         "Timeout" : "1200"
       }
     },
-	"CBVolume1" : {
+	"CBVolume0" : {
 	   "Type":"AWS::EC2::Volume",
 	   "Properties" : {
 			"AvailabilityZone" : { "Fn::FindInMap" : ["RegionZone", { "Ref" : "AWS::Region"}, "AZ3"] },
-			"Size" : "25",
-			"VolumeType" : "standard"
-		} 
+			"Size" : "100",
+			"VolumeType" : "io1",
+			"Iops" : "1000",
+			"Tags" : [ {
+	            "Key" : "Name",
+	            "Value" :  { "Fn::Join" : ["", [ { "Ref" : "AWS::StackName" }, "-0" ]]}
+	          }
+	        ]
+		}
 	},
 
-	"MountPoint" : {
+
+	"MountPoint0" : {
 		"Type":"AWS::EC2::VolumeAttachment",
 		"Properties" : {
 			"Device" : "/dev/sdh", 
 			"InstanceId" : { "Ref" : "ServerNode0" }, 
-			"VolumeId" : { "Ref" : "CBVolume1" }
+			"VolumeId" : { "Ref" : "CBVolume0" }
 		}
 	}
   },

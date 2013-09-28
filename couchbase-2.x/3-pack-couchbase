@@ -452,25 +452,43 @@
 	   "Type":"AWS::EC2::Volume",
 	   "Properties" : {
 			"AvailabilityZone" : { "Fn::FindInMap" : ["RegionZone", { "Ref" : "AWS::Region"}, "AZ3"] },
-			"Size" : "25",
-			"VolumeType" : "standard"
-		} 
+			"Size" : "100",
+			"VolumeType" : "io1",
+			"Iops" : "1000",
+			"Tags" : [ {
+	            "Key" : "Name",
+	            "Value" :  { "Fn::Join" : ["", [ { "Ref" : "AWS::StackName" }, "-0" ]]}
+	          }
+	        ]
+		}
 	},
 	"CBVolume1" : {
 	   "Type":"AWS::EC2::Volume",
 	   "Properties" : {
 			"AvailabilityZone" : { "Fn::FindInMap" : ["RegionZone", { "Ref" : "AWS::Region"}, "AZ3"] },
-			"Size" : "25",
-			"VolumeType" : "standard"
-		} 
+			"Size" : "100",
+			"VolumeType" : "io1",
+			"Iops" : "1000",
+			"Tags" : [ {
+	            "Key" : "Name",
+	            "Value" :  { "Fn::Join" : ["", [ { "Ref" : "AWS::StackName" }, "-0" ]]}
+	          }
+	        ]
+		}
 	},
 	"CBVolume2" : {
 	   "Type":"AWS::EC2::Volume",
 	   "Properties" : {
 			"AvailabilityZone" : { "Fn::FindInMap" : ["RegionZone", { "Ref" : "AWS::Region"}, "AZ3"] },
-			"Size" : "25",
-			"VolumeType" : "standard"
-		} 
+			"Size" : "100",
+			"VolumeType" : "io1",
+			"Iops" : "1000",
+			"Tags" : [ {
+	            "Key" : "Name",
+	            "Value" :  { "Fn::Join" : ["", [ { "Ref" : "AWS::StackName" }, "-0" ]]}
+	          }
+	        ]
+		}
 	},
 
 	"MountPoint0" : {
@@ -493,7 +511,7 @@
 		"Type":"AWS::EC2::VolumeAttachment",
 		"Properties" : {
 			"Device" : "/dev/sdh", 
-			"InstanceId" : { "Ref" : "ServerNode1" }, 
+			"InstanceId" : { "Ref" : "ServerNode2" }, 
 			"VolumeId" : { "Ref" : "CBVolume2" }
 		}
 	}	
