@@ -88,11 +88,10 @@
   },
 
   "Resources" : {
-   
     "ServerNode0" : {
       "Type" : "AWS::EC2::Instance",
       "Properties" : {
-		"PlacementGroupName": {"Ref": "PlacementGroupName"},
+		"PlacementGroupName": "cb_placement_group",
         "KeyName" : { "Ref" : "KeyName" },
         "SecurityGroups" : [ { "Ref" : "InstanceSecurityGroup" } ],        
 		"AvailabilityZone" : { "Fn::FindInMap" : ["RegionZone", { "Ref" : "AWS::Region"}, "AZ3"] },
@@ -296,6 +295,197 @@
       
     },
 
+    "ServerNode2" : {
+      "Type" : "AWS::EC2::Instance",
+      "Properties" : {
+		"PlacementGroupName": {"Ref": "PlacementGroupName"},
+        "KeyName" : { "Ref" : "KeyName" },
+        "SecurityGroups" : [ { "Ref" : "InstanceSecurityGroup" } ],        
+		"AvailabilityZone" : { "Fn::FindInMap" : ["RegionZone", { "Ref" : "AWS::Region"}, "AZ3"] },
+        "ImageId": {
+          "Fn::FindInMap": [
+            "AWSRegionArch2AMI",
+            {
+              "Ref": "AWS::Region"
+            },
+            {
+              "Fn::FindInMap": [
+                "AWSInstanceType2Arch",
+                {
+                  "Ref": "InstanceType"
+                },
+                "Arch"
+              ]
+            }
+          ]
+        },
+        "InstanceType" : { "Ref" : "InstanceType" },
+        "Tags" : [ {
+            "Key" : "Name",
+            "Value" :  { "Fn::Join" : ["", [ { "Ref" : "AWS::StackName" }, "-0" ]]}
+          }, {
+            "Key" : "PackageURL",
+            "Value" : { "Ref" : "PackageURL" }
+          }, {
+            "Key" : "UserTag",
+            "Value" : { "Ref" : "UserTag" }
+          }
+        ],
+        "UserData" : { "Fn::Base64" : { "Fn::Join" : ["", [
+			"#!/bin/bash -ex","\n",
+			"## Create filesystems and mount point info","\n",
+			"mkfs -t ext4 /dev/sdh > /tmp/mkfs.log 2>&1","\n",
+			"mkdir -p /opt/couchbase/","\n",
+			"echo '/dev/sdh /opt/couchbase/ ext4 defaults,auto,noatime,noexec 0 0' | tee -a /etc/fstab","\n",
+			
+			"mount /dev/sdh /opt/couchbase","\n",
+
+			"## increase limits","\n",
+			"ulimit -n 100000","\n",
+            "echo `ulimit -n` > /tmp/status.log","\n",			
+
+            "yum -y install openssl098e","\n",
+            "wget ", { "Ref" : "PackageURL" },"\n",
+            "rpm -i couchbase-server-enterprise*.rpm","\n",
+            "/bin/sh -c \"", { "Ref" : "AfterInstall" }, "\"\n",
+            "sleep 30","\n",
+              "if [ \"default\" != \"", { "Ref" : "NumVBuckets" }, "\" ]; then","\n",
+              "  wget https://raw.github.com/couchbaselabs/rampup/master/after-install","\n",
+              "  chmod a+x after-install","\n",
+              "  ./after-install ", { "Ref" : "NumVBuckets" },"\n",
+              "fi","\n",
+
+            "echo 'Node CB provisioning start....' >> /tmp/status.log","\n",
+            
+            "if [ \"host:port\" != \"", { "Ref" : "ExistingClusterHostPort" }, "\" ]; then","\n",
+
+            "echo 'Existing cluster.' >> /tmp/status.log","\n",			
+
+			"echo 'server-add start...' >> /tmp/status.log","\n",
+            " /opt/couchbase/bin/couchbase-cli server-add",
+            "    -u Administrator -p ", { "Ref" : "RESTPassword" },
+            "    -c ", { "Ref" : "ExistingClusterHostPort" },
+            "    --server-add=`hostname -i`:8091",
+            "    >> /tmp/status.log","\n",
+            "echo '...server-add complete' >> /tmp/status.log","\n",			
+            "else","\n",
+
+			"echo 'NEW cluster...' >> /tmp/status.log","\n",	
+			"echo 'server-add start...' >> /tmp/status.log","\n",
+            " /opt/couchbase/bin/couchbase-cli server-add",
+            "    -u Administrator -p ", { "Ref" : "RESTPassword" },
+            "    -c ", { "Fn::GetAtt" : [ "ServerNode0", "PublicIp" ] },
+            "    --server-add=`hostname -i`:8091",
+            "    >> /tmp/status.log","\n",
+            "echo '...server-add complete' >> /tmp/status.log","\n",
+
+            "fi","\n",
+            "/bin/sh -c \"", { "Ref" : "AfterConfigure" }, "\"\n"
+            
+        ]]}}
+      }
+      
+        ,
+        "DependsOn" : "WaitForServerNode0"
+      
+    },
+
+    "ServerNode3" : {
+      "Type" : "AWS::EC2::Instance",
+      "Properties" : {
+		"PlacementGroupName": {"Ref": "PlacementGroupName"},
+        "KeyName" : { "Ref" : "KeyName" },
+        "SecurityGroups" : [ { "Ref" : "InstanceSecurityGroup" } ],        
+		"AvailabilityZone" : { "Fn::FindInMap" : ["RegionZone", { "Ref" : "AWS::Region"}, "AZ3"] },
+        "ImageId": {
+          "Fn::FindInMap": [
+            "AWSRegionArch2AMI",
+            {
+              "Ref": "AWS::Region"
+            },
+            {
+              "Fn::FindInMap": [
+                "AWSInstanceType2Arch",
+                {
+                  "Ref": "InstanceType"
+                },
+                "Arch"
+              ]
+            }
+          ]
+        },
+        "InstanceType" : { "Ref" : "InstanceType" },
+        "Tags" : [ {
+            "Key" : "Name",
+            "Value" :  { "Fn::Join" : ["", [ { "Ref" : "AWS::StackName" }, "-0" ]]}
+          }, {
+            "Key" : "PackageURL",
+            "Value" : { "Ref" : "PackageURL" }
+          }, {
+            "Key" : "UserTag",
+            "Value" : { "Ref" : "UserTag" }
+          }
+        ],
+        "UserData" : { "Fn::Base64" : { "Fn::Join" : ["", [
+			"#!/bin/bash -ex","\n",
+			"## Create filesystems and mount point info","\n",
+			"mkfs -t ext4 /dev/sdh > /tmp/mkfs.log 2>&1","\n",
+			"mkdir -p /opt/couchbase/","\n",
+			"echo '/dev/sdh /opt/couchbase/ ext4 defaults,auto,noatime,noexec 0 0' | tee -a /etc/fstab","\n",
+			
+			"mount /dev/sdh /opt/couchbase","\n",
+
+			"## increase limits","\n",
+			"ulimit -n 100000","\n",
+            "echo `ulimit -n` > /tmp/status.log","\n",			
+
+            "yum -y install openssl098e","\n",
+            "wget ", { "Ref" : "PackageURL" },"\n",
+            "rpm -i couchbase-server-enterprise*.rpm","\n",
+            "/bin/sh -c \"", { "Ref" : "AfterInstall" }, "\"\n",
+            "sleep 30","\n",
+              "if [ \"default\" != \"", { "Ref" : "NumVBuckets" }, "\" ]; then","\n",
+              "  wget https://raw.github.com/couchbaselabs/rampup/master/after-install","\n",
+              "  chmod a+x after-install","\n",
+              "  ./after-install ", { "Ref" : "NumVBuckets" },"\n",
+              "fi","\n",
+
+            "echo 'Node CB provisioning start....' >> /tmp/status.log","\n",
+            
+            "if [ \"host:port\" != \"", { "Ref" : "ExistingClusterHostPort" }, "\" ]; then","\n",
+
+            "echo 'Existing cluster.' >> /tmp/status.log","\n",			
+
+			"echo 'server-add start...' >> /tmp/status.log","\n",
+            " /opt/couchbase/bin/couchbase-cli server-add",
+            "    -u Administrator -p ", { "Ref" : "RESTPassword" },
+            "    -c ", { "Ref" : "ExistingClusterHostPort" },
+            "    --server-add=`hostname -i`:8091",
+            "    >> /tmp/status.log","\n",
+            "echo '...server-add complete' >> /tmp/status.log","\n",			
+            "else","\n",
+
+			"echo 'NEW cluster...' >> /tmp/status.log","\n",	
+			"echo 'server-add start...' >> /tmp/status.log","\n",
+            " /opt/couchbase/bin/couchbase-cli server-add",
+            "    -u Administrator -p ", { "Ref" : "RESTPassword" },
+            "    -c ", { "Fn::GetAtt" : [ "ServerNode0", "PublicIp" ] },
+            "    --server-add=`hostname -i`:8091",
+            "    >> /tmp/status.log","\n",
+            "echo '...server-add complete' >> /tmp/status.log","\n",
+
+            "fi","\n",
+            "/bin/sh -c \"", { "Ref" : "AfterConfigure" }, "\"\n"
+            
+        ]]}}
+      }
+      
+        ,
+        "DependsOn" : "WaitForServerNode0"
+      
+    },
+
+
     "InstanceSecurityGroup" : {
       "Type" : "AWS::EC2::SecurityGroup",
       "Properties" : {
@@ -382,6 +572,34 @@
 	        ]
 		}
 	},
+	"CBVolume2" : {
+	   "Type":"AWS::EC2::Volume",
+	   "Properties" : {
+			"AvailabilityZone" : { "Fn::FindInMap" : ["RegionZone", { "Ref" : "AWS::Region"}, "AZ3"] },
+			"Size" : "100",
+			"VolumeType" : "io1",
+			"Iops" : "1000",
+			"Tags" : [ {
+	            "Key" : "Name",
+	            "Value" :  { "Fn::Join" : ["", [ { "Ref" : "AWS::StackName" }, "-0" ]]}
+	          }
+	        ]
+		}
+	},
+	"CBVolume3" : {
+	   "Type":"AWS::EC2::Volume",
+	   "Properties" : {
+			"AvailabilityZone" : { "Fn::FindInMap" : ["RegionZone", { "Ref" : "AWS::Region"}, "AZ3"] },
+			"Size" : "100",
+			"VolumeType" : "io1",
+			"Iops" : "1000",
+			"Tags" : [ {
+	            "Key" : "Name",
+	            "Value" :  { "Fn::Join" : ["", [ { "Ref" : "AWS::StackName" }, "-0" ]]}
+	          }
+	        ]
+		}
+	},
 	
 	"MountPoint0" : {
 		"Type":"AWS::EC2::VolumeAttachment",
@@ -397,6 +615,22 @@
 			"Device" : "/dev/sdh", 
 			"InstanceId" : { "Ref" : "ServerNode1" }, 
 			"VolumeId" : { "Ref" : "CBVolume1" }
+		}
+	},
+	"MountPoint2" : {
+		"Type":"AWS::EC2::VolumeAttachment",
+		"Properties" : {
+			"Device" : "/dev/sdh", 
+			"InstanceId" : { "Ref" : "ServerNode2" }, 
+			"VolumeId" : { "Ref" : "CBVolume2" }
+		}
+	},
+	"MountPoint3" : {
+		"Type":"AWS::EC2::VolumeAttachment",
+		"Properties" : {
+			"Device" : "/dev/sdh", 
+			"InstanceId" : { "Ref" : "ServerNode3" }, 
+			"VolumeId" : { "Ref" : "CBVolume3" }
 		}
 	}
   },

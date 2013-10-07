@@ -8,14 +8,14 @@
 	  "Default" : "cb-080313"
     },
     "InstanceType": {
-      "Default": "cc1.4xlarge",
+      "Default": "cc2.8xlarge",
       "Description": "Type of EC2 instances for the couchbase servers",
       "Type": "String"
     },
     "PackageURL" : {
       "Description" : "URL to couchbase server software package",
       "Type" : "String",
-      "Default" : "http://packages.couchbase.com/releases/2.1.1/couchbase-server-community_x86_64_2.1.1.rpm"
+      "Default" : "http://packages.couchbase.com/releases/2.2.0/couchbase-server-enterprise_2.2.0_x86_64.rpm"
     },
     "RESTPassword" : {
       "NoEcho": "true",
@@ -26,13 +26,13 @@
     "RAMPerServer" : {
       "Description" : "RAM quota in MB for each node in the cluster",
       "Type" : "Number",
-      "Default" : "4096",
+      "Default" : "14336",
       "MinValue" : "200"
     },
     "RAMForDefaultBucket" : {
       "Description" : "RAM quota in MB for each node for the default bucket. Should be <= RAMPerServer. Set to 0 for no default bucket.",
       "Type" : "Number",
-      "Default" : "2048",
+      "Default" : "12288",
       "MinValue" : "0"
     },
     "ExistingClusterHostPort" : {
@@ -74,7 +74,8 @@
 
   "Mappings" : {
     "AWSInstanceType2Arch" : {
-        "cc1.4xlarge" : { "Arch" : "64" }
+        "cc1.4xlarge" : { "Arch" : "64" },
+        "cc2.8xlarge" : { "Arch" : "64" }
       
     },
     "AWSRegionArch2AMI" : {
@@ -85,6 +86,7 @@
         "us-east-1" : {"AZ1" : "us-east-1a", "AZ2" : "us-east-1b", "AZ3" : "us-east-1c", "AZ4" : "us-east-1d", "AZ5" : "us-east-1e"}
     }
   },
+
 
   "Resources" : {
    
@@ -127,9 +129,10 @@
         "UserData" : { "Fn::Base64" : { "Fn::Join" : ["", [
 			"#!/bin/bash -ex","\n",
 			"## Create filesystems and mount point info","\n",
-			"mkfs -t ext3 /dev/sdh > /tmp/mkfs.log 2>&1","\n",
+			"mkfs -t ext4 /dev/sdh > /tmp/mkfs.log 2>&1","\n",
 			"mkdir -p /opt/couchbase/","\n",
 			"echo '/dev/sdh /opt/couchbase/ ext4 defaults,auto,noatime,noexec 0 0' | tee -a /etc/fstab","\n",
+			"dd if=/dev/sdh of=/dev/null","\n",
 			"mount /dev/sdh /opt/couchbase","\n",
 			
 			"## increase limits","\n",
@@ -138,9 +141,9 @@
 
             "yum -y install openssl098e","\n",
             "wget ", { "Ref" : "PackageURL" },"\n",
-            "rpm -i couchbase-server-community*.rpm","\n",
+            "rpm -i couchbase-server-enterprise*.rpm","\n",
             "/bin/sh -c \"", { "Ref" : "AfterInstall" }, "\"\n",
-            "sleep 25","\n",
+            "sleep 30","\n",
               "if [ \"default\" != \"", { "Ref" : "NumVBuckets" }, "\" ]; then","\n",
               "  wget https://raw.github.com/couchbaselabs/rampup/master/after-install","\n",
               "  chmod a+x after-install","\n",
@@ -238,20 +241,21 @@
         "UserData" : { "Fn::Base64" : { "Fn::Join" : ["", [
 			"#!/bin/bash -ex","\n",
 			"## Create filesystems and mount point info","\n",
-			"mkfs -t ext3 /dev/sdh > /tmp/mkfs.log 2>&1","\n",
+			"mkfs -t ext4 /dev/sdh > /tmp/mkfs.log 2>&1","\n",
 			"mkdir -p /opt/couchbase/","\n",
 			"echo '/dev/sdh /opt/couchbase/ ext4 defaults,auto,noatime,noexec 0 0' | tee -a /etc/fstab","\n",
+			"dd if=/dev/sdh of=/dev/null","\n",
 			"mount /dev/sdh /opt/couchbase","\n",
 
 			"## increase limits","\n",
 			"ulimit -n 100000","\n",
-            "echo `uname -n` > /tmp/status.log","\n",			
+            "echo `ulimit -n` > /tmp/status.log","\n",			
 
             "yum -y install openssl098e","\n",
             "wget ", { "Ref" : "PackageURL" },"\n",
-            "rpm -i couchbase-server-community*.rpm","\n",
+            "rpm -i couchbase-server-enterprise*.rpm","\n",
             "/bin/sh -c \"", { "Ref" : "AfterInstall" }, "\"\n",
-            "sleep 25","\n",
+            "sleep 30","\n",
               "if [ \"default\" != \"", { "Ref" : "NumVBuckets" }, "\" ]; then","\n",
               "  wget https://raw.github.com/couchbaselabs/rampup/master/after-install","\n",
               "  chmod a+x after-install","\n",
@@ -293,7 +297,6 @@
       
     },
 
-
     "ServerNode2" : {
       "Type" : "AWS::EC2::Instance",
       "Properties" : {
@@ -333,20 +336,21 @@
         "UserData" : { "Fn::Base64" : { "Fn::Join" : ["", [
 			"#!/bin/bash -ex","\n",
 			"## Create filesystems and mount point info","\n",
-			"mkfs -t ext3 /dev/sdh > /tmp/mkfs.log 2>&1","\n",
+			"mkfs -t ext4 /dev/sdh > /tmp/mkfs.log 2>&1","\n",
 			"mkdir -p /opt/couchbase/","\n",
 			"echo '/dev/sdh /opt/couchbase/ ext4 defaults,auto,noatime,noexec 0 0' | tee -a /etc/fstab","\n",
+			"dd if=/dev/sdh of=/dev/null","\n",
 			"mount /dev/sdh /opt/couchbase","\n",
 
 			"## increase limits","\n",
 			"ulimit -n 100000","\n",
-            "echo `uname -n` > /tmp/status.log","\n",			
+            "echo `ulimit -n` > /tmp/status.log","\n",			
 
             "yum -y install openssl098e","\n",
             "wget ", { "Ref" : "PackageURL" },"\n",
-            "rpm -i couchbase-server-community*.rpm","\n",
+            "rpm -i couchbase-server-enterprise*.rpm","\n",
             "/bin/sh -c \"", { "Ref" : "AfterInstall" }, "\"\n",
-            "sleep 25","\n",
+            "sleep 30","\n",
               "if [ \"default\" != \"", { "Ref" : "NumVBuckets" }, "\" ]; then","\n",
               "  wget https://raw.github.com/couchbaselabs/rampup/master/after-install","\n",
               "  chmod a+x after-install","\n",
@@ -491,6 +495,7 @@
 		}
 	},
 
+	
 	"MountPoint0" : {
 		"Type":"AWS::EC2::VolumeAttachment",
 		"Properties" : {
@@ -514,9 +519,8 @@
 			"InstanceId" : { "Ref" : "ServerNode2" }, 
 			"VolumeId" : { "Ref" : "CBVolume2" }
 		}
-	}	
+	}
   },
-
 
 
   "Outputs" : {
